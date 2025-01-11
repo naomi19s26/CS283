@@ -1,6 +1,6 @@
-#Asssignment 0 - Warmup
+# Asssignment 0 - Warmup
 
-##Questions
+## Questions
 
 1. Select with an x the platform you will be using for your course deliverables:
    - [X] drexel's tux cluster
@@ -8,3 +8,11 @@
    - [ ] Orbstack on MacOs
    - [ ] VMWare Fusion
    - [ ] Somthing else (put name here)
+  
+2. I have installed my virtual machine, tested it, feel comfortable using it, and validated that the required software is installed:
+   - [ ] YES
+   - [X] N/A - I plan to use tux
+   - [ ] NO - Not Yet
+  
+3. Link to class repository:
+4. 
