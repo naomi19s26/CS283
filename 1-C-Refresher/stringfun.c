@@ -17,14 +17,18 @@ int  count_words(char *, int, int);
 int setup_buff(char *buff, char *user_str, int len){
     //TODO: #4:  Implement the setup buff as per the directions
     char *str_ptr;
+    int temp_val;
     char prev_char = '\0';
     int str_len = 0;
-    int temp_val;
 	str_ptr = user_str;
 	//updates buffer based on inputed user_string
     while(*str_ptr != '\0'){    	
 		if(*str_ptr != ' ' || (*str_ptr == ' ' && prev_char != ' ') || (*str_ptr == ' ' && prev_char == '\0')){
 			str_len++;
+			if(str_len == 50 && *(str_ptr + 1) != '\0'){
+				printf("this made it exit\n");
+				return -1;
+			}
 			*buff = *str_ptr;
 			buff++;
 		}
@@ -203,7 +207,7 @@ int main(int argc, char *argv[]){
     user_str_len = setup_buff(buff, input_string, BUFFER_SZ);//see todos
     
     if (user_str_len < 0){
-        printf("Error setting up buffer, error = %d", user_str_len);
+        printf("Error setting up buffer, error = %d\n", user_str_len);
         exit(2);
     }
 
@@ -211,7 +215,7 @@ int main(int argc, char *argv[]){
         case 'c':
             rc = count_words(buff, BUFFER_SZ, user_str_len);  //you need to implement
             if (rc < 0){
-                printf("Error counting words, rc = %d", rc);
+                printf("Error counting words, rc = %d\n", rc);
                 exit(2);
             }
             printf("Word Count: %d\n", rc);
@@ -229,7 +233,7 @@ int main(int argc, char *argv[]){
         case 'w':
         	rc = word_print(buff, BUFFER_SZ, user_str_len);
         	if (rc < 0){
-                printf("Error counting words, rc = %d", rc);
+                printf("Error counting words, rc = %d\n", rc);
                 exit(2);
             }
             break;
@@ -251,3 +255,7 @@ int main(int argc, char *argv[]){
 //          the buff variable will have exactly 50 bytes?
 //  
 //          PLACE YOUR ANSWER HERE
+//Having both the pointer and length is good practice because
+//the pointer serves as a refernce to loop through the string and
+//the length variable serves as a safety check, because it helps
+//check if the user's string is larger than the buffer size
