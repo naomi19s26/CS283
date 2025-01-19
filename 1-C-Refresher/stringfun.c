@@ -26,7 +26,6 @@ int setup_buff(char *buff, char *user_str, int len){
 		if(*str_ptr != ' ' || (*str_ptr == ' ' && prev_char != ' ') || (*str_ptr == ' ' && prev_char == '\0')){
 			str_len++;
 			if(str_len == 50 && *(str_ptr + 1) != '\0'){
-				printf("this made it exit\n");
 				return -1;
 			}
 			*buff = *str_ptr;
@@ -93,6 +92,7 @@ int count_words(char *buff, int len, int str_len){
 }
 
 //ADD OTHER HELPER FUNCTIONS HERE FOR OTHER REQUIRED PROGRAM OPTIONS
+//implements reversed_string function: reverses string in buffer
 char* reverse_string(char* buff, int str_len){
 	char *reversed_string = (char *)malloc((str_len + 1) * sizeof(char));
     if (reversed_string == NULL) {
@@ -100,6 +100,7 @@ char* reverse_string(char* buff, int str_len){
         return NULL;
     }
     
+    //defines pointers at the end of user string and in the beginning of reversed_string
     char *end_ptr = buff + str_len - 1;
     char *reversed_ptr = reversed_string; 
 
@@ -115,6 +116,7 @@ char* reverse_string(char* buff, int str_len){
 	
 }
 
+//implements word_print function: prints out words and character count in buffer
 int word_print(char *buff, int len, int str_len) {
     if (str_len > len) {
         return -1;
@@ -142,7 +144,7 @@ int word_print(char *buff, int len, int str_len) {
         str_len--;
     }
 
-    if (char_count > 0) { // Handle the last word properly
+    if (char_count > 0) { 
         printf(" %d\n", char_count);
     }
 
@@ -201,7 +203,7 @@ int main(int argc, char *argv[]){
     buff = (char*)malloc((BUFFER_SZ+1));
     if(buff == NULL){
 		printf("Memory allocation failed");
-		exit(1);
+		exit(99);
     }
 
     user_str_len = setup_buff(buff, input_string, BUFFER_SZ);//see todos
