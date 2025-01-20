@@ -103,7 +103,8 @@ char* reverse_string(char* buff, int str_len){
     //defines pointers at the end of user string and in the beginning of reversed_string
     char *end_ptr = buff + str_len - 1;
     char *reversed_ptr = reversed_string; 
-
+	
+	//updates buffer with reversed characters
 	while (str_len > 0) {
         *reversed_ptr = *end_ptr;
         reversed_ptr++;
@@ -128,6 +129,7 @@ int word_print(char *buff, int len, int str_len) {
 
     while (str_len > 0) {
         if (*buff != ' ') {
+        	//prints non space charcacters and updates char_count and word_count
             if (char_count == 0) {
                 word_count++;
                 printf("%d. ", word_count);
@@ -135,6 +137,7 @@ int word_print(char *buff, int len, int str_len) {
             printf("%c", *buff);
             char_count++;
         } else {
+        	//prints out char_count if space character is found in between words
             if (word_count != 0 && str_len != 1) {
                 printf(" %d\n", char_count);
                 char_count = 0;
@@ -152,7 +155,6 @@ int word_print(char *buff, int len, int str_len) {
     return 0;
 }
 
-
 int main(int argc, char *argv[]){
     char *buff;             //placehoder for the internal buffer
     char *input_string;     //holds the string provided by the user on cmd line
@@ -165,10 +167,12 @@ int main(int argc, char *argv[]){
     //      PLACE A COMMENT BLOCK HERE EXPLAINING
     // argc is an integer that represents the number of elements given in command line
     //argv is a list that stores all command line arguments
-    //this if statement checks if the user inputted less than 2 arguments or the 2 arguments is "-"
-    //this statement is safe because if argv[1] doesn't exist then the first condition (argc < 2) is met
+    //this if statement checks if the user inputted less than 2 arguments or the first charcter fo the second argument is not "-"
+    //argv[1] signifies the type command you want to be done on the string, this checks if the first character of this part of the argument is "-" is given 
+    //in teh correct format
+    //if the command isn't given in this format, we can't process it. Therefore, this is a safe and essential check to implement
     //This immediately causes the code in the if statement to execute causing the program to exit
-    //The progam must have at least one command line argument because one is required to run the program
+    //This check is needed and safe because if makes sure that the second command line argument is in a valid format which can be read by the system
     if ((argc < 2) || (*argv[1] != '-')){
         usage(argv[0]);
         exit(1);
@@ -226,12 +230,13 @@ int main(int argc, char *argv[]){
         //TODO:  #5 Implement the other cases for 'r' and 'w' by extending
         //
         //the case statement options
+        //implements reverse string case
         case 'r':
         	reversed_string = reverse_string(buff, user_str_len);
         	printf("Reversed string:%s\n", reversed_string);
         	free(reversed_string);
         	break;
-
+		//implements word print case
         case 'w':
         	rc = word_print(buff, BUFFER_SZ, user_str_len);
         	if (rc < 0){
@@ -239,6 +244,15 @@ int main(int argc, char *argv[]){
                 exit(2);
             }
             break;
+
+        //implements replace word case (without extra credit)   
+        case 'x':
+        	if(argc < 5){
+				usage(argv[0]);
+				exit(1);
+        	}
+        	printf("Not implemented!\n");
+        	break;
         default:
             usage(argv[0]);
             exit(1);
@@ -257,7 +271,8 @@ int main(int argc, char *argv[]){
 //          the buff variable will have exactly 50 bytes?
 //  
 //          PLACE YOUR ANSWER HERE
-//Having both the pointer and length is good practice because
-//the pointer serves as a refernce to loop through the string and
-//the length variable serves as a safety check, because it helps
-//check if the user's string is larger than the buffer size
+// Having both the pointer and the length is good practice because
+// the pointer serves as a reference to loop through the string, and
+// the length variable acts as a safety check to ensure that the user's 
+// string doesn't exceed the buffer size. Even though we already check for this in setup_buff(),
+//I think it is good to still check this for safety reasons.
