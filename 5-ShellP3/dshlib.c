@@ -52,41 +52,6 @@
  *  Standard Library Functions You Might Want To Consider Using (assignment 2+)
  *      fork(), execvp(), exit(), chdir()
  */
-
- #include <stdlib.h>
- #include <stdio.h>
- #include <string.h>
- #include <ctype.h>
- 
- #include "dshlib.h"
- 
- /*
-  *  build_cmd_list
-  *    cmd_line:     the command line from the user
-  *    clist *:      pointer to clist structure to be populated
-  *
-  *  This function builds the command_list_t structure passed by the caller
-  *  It does this by first splitting the cmd_line into commands by spltting
-  *  the string based on any pipe characters '|'.  It then traverses each
-  *  command.  For each command (a substring of cmd_line), it then parses
-  *  that command by taking the first token as the executable name, and
-  *  then the remaining tokens as the arguments.
-  *
-  *  NOTE your implementation should be able to handle properly removing
-  *  leading and trailing spaces!
-  *
-  *  errors returned:
-  *
-  *    OK:                      No Error
-  *    ERR_TOO_MANY_COMMANDS:   There is a limit of CMD_MAX (see dshlib.h)
-  *                             commands.
-  *    ERR_CMD_OR_ARGS_TOO_BIG: One of the commands provided by the user
-  *                             was larger than allowed, either the
-  *                             executable name, or the arg string.
-  *
-  *  Standard Library Functions You Might Want To Consider Using
-  *      memset(), strcmp(), strcpy(), strtok(), strlen(), strchr()
-  */
   
 int handle_cd(cmd_buff_t *cmd) {
     if (cmd->argc == 1) {
@@ -121,9 +86,10 @@ char *trim_spaces(char *string) {
     return string;
 }
 
-void save_command(command_list_t *clist, int index) {
+int save_command(command_list_t *clist, int index) {
     char *temp_buff = clist->commands[index]._cmd_buffer;
-    char word[SH_CMD_MAX];
+    int arg_size = 0;
+    char word[ARG_MAX+1];
     int index_word = 0;
     int quotes_checker = 0;
 
@@ -138,6 +104,9 @@ void save_command(command_list_t *clist, int index) {
             continue;
         }
         if (*temp_buff == ' ' && quotes_checker % 2 == 0) {
+            if(arg_size >= ARG_MAX){
+                return ERR_CMD_OR_ARGS_TOO_BIG;
+            }
             if (index_word > 0) {
                 word[index_word] = '\0';
                 clist->commands[index].argv[clist->commands[index].argc] = strdup(word);
@@ -146,9 +115,11 @@ void save_command(command_list_t *clist, int index) {
                 }
                 clist->commands[index].argc++;
                 index_word = 0;
+                arg_size = 0;
             }
         } else {
             word[index_word++] = *temp_buff;
+            arg_size++;
         }
         temp_buff++;
     }
@@ -161,7 +132,8 @@ void save_command(command_list_t *clist, int index) {
         }
         clist->commands[index].argc++;
     }
-    clist->commands[index].argv[clist->commands[index].argc] = NULL; 
+    clist->commands[index].argv[clist->commands[index].argc] = NULL;
+    return OK;
 }
 
 int build_cmd_list(char *cmd_line, command_list_t *clist) {
@@ -177,11 +149,9 @@ int build_cmd_list(char *cmd_line, command_list_t *clist) {
         }
         temp++;
     }
-
     if (command_count > CMD_MAX) {
         return ERR_TOO_MANY_COMMANDS;
     }
-
     clist->num = 0;
 
     char *cmd_line_copy = strdup(cmd_line);
@@ -202,12 +172,13 @@ int build_cmd_list(char *cmd_line, command_list_t *clist) {
         clist->commands[index]._cmd_buffer[SH_CMD_MAX - 1] = '\0';
 
         clist->commands[index].argc = 0;
-        save_command(clist, index);
+        if(save_command(clist, index) != OK){
+            return save_command(clist, index);
+        }
 
         command = strtok(NULL, PIPE_STRING);
         index++;
     }
-
     clist->num = index;
     free(cmd_line_copy);
     return OK;
@@ -225,7 +196,6 @@ int execute_piped_commands(command_list_t *clist) {
         pid_t pid = fork();
         if (pid == 0) {
             execvp(clist->commands[0].argv[0], clist->commands[0].argv);
-            perror("execvp");
             exit(ERR_EXEC_CMD);
         } else if (pid > 0) {
             int status;
@@ -251,13 +221,11 @@ int execute_piped_commands(command_list_t *clist) {
             if (pids[i] == -1) {
                 return ERR_EXEC_CMD;
             }
-    
             if (pids[i] == 0) { 
                 if (i > 0) {
                     dup2(pipes[i - 1][0], STDIN_FILENO);
                     close(pipes[i - 1][1]);
                 }
-    
                 if (i < clist->num - 1) {
                     dup2(pipes[i][1], STDOUT_FILENO);
                     close(pipes[i][0]);
@@ -268,7 +236,6 @@ int execute_piped_commands(command_list_t *clist) {
                     close(pipes[j][1]);
                 }
                 execvp(clist->commands[i].argv[0], clist->commands[i].argv);
-                perror("execvp");
                 exit(ERR_EXEC_CMD); 
             }
         }
@@ -276,7 +243,6 @@ int execute_piped_commands(command_list_t *clist) {
             close(pipes[i][0]);
             close(pipes[i][1]);
         }
-
         for (int i = 0; i < clist->num; i++) {
             int status;
             if (waitpid(pids[i], &status, 0) == -1) {
@@ -288,19 +254,6 @@ int execute_piped_commands(command_list_t *clist) {
         }
     }
     return OK;
-}
-
-
-
-void print_clist(command_list_t *clist) {
-    for (int i = 0; i < clist->num; i++) {
-        printf("Command %d: %s\n", i, clist->commands[i]._cmd_buffer);
-        printf("Arguments: %d\n", clist->commands[i].argc);
-        for (int j = 0; j < clist->commands[i].argc; j++) {
-            printf("  argv[%d]: %s\n", j, clist->commands[i].argv[j]);
-        }
-        printf("\n");
-    }
 }
 
 int exec_local_cmd_loop() {
@@ -317,7 +270,7 @@ int exec_local_cmd_loop() {
         cmd_line[strcspn(cmd_line, "\n")] = '\0';
 
         if (strcmp(cmd_line, EXIT_CMD) == 0) {
-            exit(0);
+            return OK;
         }
         rc = build_cmd_list(cmd_line, &clist);
         if (rc == WARN_NO_CMDS) {
@@ -327,8 +280,13 @@ int exec_local_cmd_loop() {
             printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
             continue;
         }
-        //print_clist(&clist);
-        execute_piped_commands(&clist);
+        else if (rc == ERR_CMD_OR_ARGS_TOO_BIG){
+            continue;
+        }
+        else{
+            execute_piped_commands(&clist);
+        }
+        
     }
     return OK;
 }
