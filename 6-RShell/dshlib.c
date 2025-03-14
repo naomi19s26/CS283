@@ -185,6 +185,43 @@ int build_cmd_list(char *cmd_line, command_list_t *clist) {
 }
 
 
+void save_command_buff(cmd_buff_t *cmd) {
+    char *temp_buff = cmd->_cmd_buffer;
+    char word[SH_CMD_MAX];
+    int index = 0;
+    int quotes_checker = 0;  
+    while (*temp_buff != '\0') {
+        if (*temp_buff == '"') {
+            quotes_checker++;
+            temp_buff++;
+            continue;
+        }
+        if (*temp_buff == ' ' && quotes_checker % 2 == 0) {
+            if (index > 0) {
+                word[index] = '\0';
+                cmd->argv[cmd->argc] = strdup(word);
+                cmd->argc++;
+                index = 0;
+            }
+        } else {
+            word[index] = *temp_buff;
+            index++;
+        }
+
+        temp_buff++;
+    }
+    if (index > 0) {
+        word[index] = '\0';
+        cmd->argv[cmd->argc] = strdup(word);
+        if (cmd->argv[cmd->argc] == NULL) {
+            exit(ERR_MEMORY);
+        }
+        cmd->argc++;
+    }
+
+    cmd->argv[cmd->argc] = NULL; 
+}
+
 int execute_piped_commands(command_list_t *clist) {
     if (clist->num < 1) {
         return ERR_EXEC_CMD;
@@ -256,6 +293,42 @@ int execute_piped_commands(command_list_t *clist) {
     return OK;
 }
 
+int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd) {
+	if (strlen(cmd_line) == 0) {
+        return WARN_NO_CMDS;
+    }
+    char *cmd_buff = trim_spaces(cmd_line);
+    char *temp_buff = cmd_buff;
+    char* formatted_buff = cmd->_cmd_buffer;
+    char prev_char = '\0';
+    int argument_count = 0;
+    int quotes_check = 0;
+
+    while (*temp_buff != '\0') {
+        if (*temp_buff == '"') {
+            quotes_check++;
+        }
+        if ((*temp_buff != ' ' || prev_char != ' ') || (*temp_buff != ' ' || quotes_check % 2 != 0)) {
+            *formatted_buff = *temp_buff;
+            formatted_buff++;
+        }
+        else if (*temp_buff == ' ' && prev_char != ' ' && quotes_check % 2 == 0) {
+            argument_count++;
+        }
+
+        prev_char = *temp_buff;
+        temp_buff++;
+    }
+    *formatted_buff = '\0';
+    if(argument_count > CMD_ARGV_MAX){
+    	return ERR_TOO_MANY_COMMANDS;
+    }
+    cmd->argc = argument_count;
+    save_command_buff(cmd);
+    return OK;
+}
+
+
 int exec_local_cmd_loop() {
     char cmd_line[SH_CMD_MAX];
     command_list_t clist;
@@ -296,3 +369,4 @@ int exec_local_cmd_loop() {
     }
     return OK;
 }
+

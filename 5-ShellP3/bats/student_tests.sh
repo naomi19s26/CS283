@@ -192,10 +192,3 @@ EOF
 	[ "$status" -eq 0 ]
     [ "$stripped_output" = "$expected_output" ]  
 }
-
-
-
-
-
-
-
