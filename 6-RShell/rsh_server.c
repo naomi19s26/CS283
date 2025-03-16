@@ -206,24 +206,20 @@ int stop_server(int svr_socket){
  int process_cli_requests(int svr_socket) {
     int cli_socket;
     int rc = OK;
-    struct sockaddr_in cli_addr;
-    socklen_t addr_len = sizeof(cli_addr);
 
     while (1) {
-        cli_socket = accept(svr_socket, (struct sockaddr *)&cli_addr, &addr_len);
+        cli_socket = accept(svr_socket, NULL, NULL);
         if (cli_socket < 0) {
             perror("accept");
             return ERR_RDSH_COMMUNICATION;
         }
 
         rc = exec_client_requests(cli_socket);
+        close(cli_socket);
         if (rc == OK_EXIT) {
             break;
-        } else if (rc != OK) {
-            rc = ERR_RDSH_CLIENT;
         }
-
-        close(cli_socket);
+        
     }
 
     stop_server(svr_socket);
@@ -245,7 +241,6 @@ int exec_single_command(int cli_socket, cmd_buff_t *cmd) {
         int status;
         waitpid(pid, &status, 0);
         if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-            send_message_string(cli_socket, "Command executed with errors.");
             return ERR_EXEC_CMD;
         }
     } else {
@@ -312,67 +307,57 @@ int exec_single_command(int cli_socket, cmd_buff_t *cmd) {
     }
 
     while (1) {
-        io_size = recv(cli_socket, io_buff, RDSH_COMM_BUFF_SZ, 0);
-        if (io_size <= 0) {
-            if (io_size == 0) {
-                printf("Client disconnected\n");
-            } else {
-                perror("recv");
-            }
-            free(io_buff);
+        io_size = recv(cli_socket, io_buff, RDSH_COMM_BUFF_SZ -1, 0);
+        if (io_size < 0) {
+            perror("read error");
             return ERR_RDSH_COMMUNICATION;
         }
 
-        io_buff[io_size] = '\0'; 
-
+        io_buff[io_size] = '\0';
+        Built_In_Cmds bi_cmd = rsh_match_command(io_buff);
+        if (bi_cmd == BI_CMD_EXIT) {
+            send_message_string(cli_socket, RCMD_MSG_CLIENT_EXITED);
+            close(cli_socket);
+            free(io_buff);
+            return OK;
+        } else if (bi_cmd == BI_CMD_STOP_SVR) {
+            send_message_string(cli_socket, RCMD_MSG_SVR_STOP_REQ);
+            close(cli_socket);
+            free(io_buff);
+            exit(0);
+        }
         char *pipe_pos = strchr(io_buff, PIPE_CHAR);
-
+        printf("rdsh-exec: %s\n", io_buff);
         if (pipe_pos != NULL) {
             // Command contains a pipe
             rc = build_cmd_list(io_buff, &cmd_list);
-            if (rc != OK) {
-                send_message_string(cli_socket, "Failed to parse pipe command.");
-                free(io_buff);
-                return rc;
-            }
-            else if(rc == WARN_NO_CMDS) {
+            if(rc == WARN_NO_CMDS) {
                 send_message_string(cli_socket, CMD_WARN_NO_CMD);
             }
+            else if(rc == ERR_TOO_MANY_COMMANDS){
+                send_message_string(cli_socket, CMD_ERR_PIPE_LIMIT);
+            }
             cmd_rc = rsh_execute_pipeline(cli_socket, &cmd_list);
+            if(cmd_rc != OK){
+                send_message_string(cli_socket, CMD_ERR_RDSH_EXEC);
+            }
         } else {
-            // Command doesn't contain a pipe, process normally
             rc = build_cmd_buff(io_buff, &cmd);
-            if (rc != OK) {
-                send_message_string(cli_socket, "Failed to parse command.");
-                free(io_buff);
-                return rc;
+            if(rc == WARN_NO_CMDS) {
+                send_message_string(cli_socket, CMD_WARN_NO_CMD);
             }
-
-            Built_In_Cmds bi_cmd = rsh_match_command(io_buff);
-            if (bi_cmd == BI_CMD_CD) {
+            else if (bi_cmd == BI_CMD_CD) {
                 cmd_rc = handle_cd(&cmd);
-            } else if (bi_cmd == BI_CMD_EXIT) {
-                send_message_string(cli_socket, RCMD_MSG_CLIENT_EXITED);
-                free(io_buff);
-                return OK;
-            } else if (bi_cmd == BI_CMD_STOP_SVR) {
-                send_message_string(cli_socket, RCMD_MSG_SVR_STOP_REQ);
-                free(io_buff);
-                return OK_EXIT;
-            } else {
+            }
+            else {
                 cmd_rc = exec_single_command(cli_socket, &cmd);
+                if(cmd_rc != OK){
+                    send_message_string(cli_socket, CMD_ERR_RDSH_EXEC);
+                }
             }
         }
-
-        if (cmd_rc != OK) {
-            send_message_string(cli_socket, CMD_ERR_RDSH_EXEC);
-            free(io_buff);
-            return cmd_rc; 
-        }
-
         send_message_eof(cli_socket);
     }
-
     free(io_buff);
     return rc; 
 }
@@ -433,7 +418,7 @@ int send_message_eof(int cli_socket){
         perror("send failed");
         return ERR_RDSH_COMMUNICATION;
     }
-    printf("%s\n", buff);
+    printf("%s", buff);
 
     return OK;
 }
@@ -518,7 +503,7 @@ int send_message_eof(int cli_socket){
             exit(ERR_EXEC_CMD);
         }
     }
-
+    
     for (int i = 0; i < clist->num - 1; i++) {
         close(pipes[i][0]);
         close(pipes[i][1]);
