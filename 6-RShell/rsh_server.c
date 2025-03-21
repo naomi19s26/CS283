@@ -244,11 +244,8 @@ int exec_single_command(int cli_socket, cmd_buff_t *cmd) {
             return ERR_EXEC_CMD;
         }
     } else {
-        send_message_string(cli_socket, "Failed to create child process.");
         return ERR_EXEC_CMD;
     }
-
-    send_message_eof(cli_socket);
     return OK;
 }
 
